@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sistema de Férias — Stratura</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #f5f6fa; color: #1a1a2e; min-height: 100vh; }
+    header { background: #1a1a2e; color: #fff; padding: 1rem 2rem; display: flex; align-items: center; gap: 12px; }
+    header h1 { font-size: 18px; font-weight: 500; }
+    header span { font-size: 13px; color: #8b8fa8; margin-left: auto; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; }
+    .tabs { display: flex; gap: 4px; margin-bottom: 1.5rem; border-bottom: 1px solid #e0e0e8; }
+    .tab { padding: 8px 20px; border: none; background: none; cursor: pointer; font-size: 14px; color: #666; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.2s; }
+    .tab.active { color: #1a1a2e; border-bottom-color: #1a1a2e; font-weight: 500; }
+    .tab:hover:not(.active) { color: #333; }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .card { background: #fff; border-radius: 10px; border: 1px solid #e8e8f0; padding: 1.5rem; margin-bottom: 1rem; }
+    .card h2 { font-size: 15px; font-weight: 500; margin-bottom: 1.25rem; color: #1a1a2e; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .form-group.full { grid-column: 1 / -1; }
+    label { font-size: 13px; color: #555; font-weight: 500; }
+    input { padding: 8px 12px; border: 1px solid #dde0ec; border-radius: 6px; font-size: 14px; outline: none; transition: border 0.2s; }
+    input:focus { border-color: #1a1a2e; }
+    input.valid { border-color: #16a34a; }
+    input.invalid { border-color: #dc2626; }
+    .hint { font-size: 12px; margin-top: 3px; }
+    .hint.ok { color: #16a34a; }
+    .hint.erro { color: #dc2626; }
+    .hint.verificando { color: #888; }
+    .btn { padding: 9px 20px; border-radius: 6px; border: none; font-size: 14px; cursor: pointer; transition: all 0.2s; font-weight: 500; }
+    .btn-primary { background: #1a1a2e; color: #fff; }
+    .btn-primary:hover { background: #2d2d4e; }
+    .btn-primary:disabled { background: #aaa; cursor: not-allowed; }
+    .btn-danger { background: #fee2e2; color: #991b1b; }
+    .btn-danger:hover { background: #fecaca; }
+    .btn-success { background: #dcfce7; color: #166534; }
+    .btn-success:hover { background: #bbf7d0; }
+    .btn-sm { padding: 5px 12px; font-size: 12px; }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+    .stat { background: #fff; border-radius: 10px; border: 1px solid #e8e8f0; padding: 1.25rem 1.5rem; }
+    .stat-label { font-size: 12px; color: #888; margin-bottom: 4px; }
+    .stat-value { font-size: 28px; font-weight: 500; color: #1a1a2e; }
+    .stat.em-ferias .stat-value { color: #d97706; }
+    .stat.hoje .stat-value { color: #0369a1; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { text-align: left; padding: 10px 12px; color: #888; font-weight: 500; border-bottom: 1px solid #e8e8f0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+    td { padding: 10px 12px; border-bottom: 1px solid #f0f0f8; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #fafafe; }
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+    .badge-pendente { background: #fef9c3; color: #854d0e; }
+    .badge-emferias { background: #fef3c7; color: #92400e; }
+    .badge-finalizado { background: #dcfce7; color: #166534; }
+    .actions { display: flex; gap: 6px; }
+    .empty { text-align: center; padding: 3rem; color: #aaa; font-size: 14px; }
+    .alert { padding: 10px 14px; border-radius: 6px; font-size: 13px; margin-bottom: 1rem; display: none; }
+    .alert-success { background: #dcfce7; color: #166534; display: block; }
+    .alert-error { background: #fee2e2; color: #991b1b; display: block; }
+    .filter-row { display: flex; gap: 10px; margin-bottom: 1rem; align-items: center; }
+    .filter-row select { padding: 7px 12px; border: 1px solid #dde0ec; border-radius: 6px; font-size: 13px; outline: none; background: #fff; }
+    .filter-row input { max-width: 220px; }
+    @media (max-width: 600px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .stats { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+  <h1>Sistema de Férias</h1>
+  <span id="hoje-header"></span>
+</header>
+
+<div class="container">
+  <div class="stats">
+    <div class="stat"><div class="stat-label">Total cadastrado</div><div class="stat-value" id="stat-total">—</div></div>
+    <div class="stat em-ferias"><div class="stat-label">Em férias agora</div><div class="stat-value" id="stat-emferias">—</div></div>
+    <div class="stat hoje"><div class="stat-label">Retornam esta semana</div><div class="stat-value" id="stat-semana">—</div></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('lista')">Todos os registros</button>
+    <button class="tab" onclick="showTab('novo')">+ Cadastrar férias</button>
+  </div>
+
+  <div id="panel-lista" class="panel active">
+    <div class="card">
+      <div class="filter-row">
+        <input type="text" id="busca" placeholder="Buscar por nome ou login..." oninput="filtrar()" />
+        <select id="filtro-status" onchange="filtrar()">
+          <option value="">Todos os status</option>
+          <option value="1">Pendente</option>
+          <option value="2">Em Férias</option>
+          <option value="3">Finalizado</option>
+        </select>
+        <button class="btn btn-primary btn-sm" onclick="carregarFerias()">Atualizar</button>
+      </div>
+      <div id="alert-lista" class="alert"></div>
+      <table>
+        <thead>
+          <tr>
+            <th>Funcionário</th>
+            <th>Login AD</th>
+            <th>Início</th>
+            <th>Retorno</th>
+            <th>Status</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody id="tabela-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="panel-novo" class="panel">
+    <div class="card">
+      <h2>Cadastrar período de férias</h2>
+      <div id="alert-form" class="alert"></div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Nome do funcionário</label>
+          <input type="text" id="nome" placeholder="Ex: João da Silva" />
+        </div>
+        <div class="form-group">
+          <label>E-mail corporativo</label>
+          <input type="email" id="email" placeholder="Ex: joao.silva@stratura.com.br" oninput="onEmailInput()" />
+          <span class="hint" id="email-hint"></span>
+        </div>
+        <div class="form-group">
+          <label>Data de início</label>
+          <input type="date" id="dataInicio" />
+        </div>
+        <div class="form-group">
+          <label>Data de retorno</label>
+          <input type="date" id="dataRetorno" />
+        </div>
+        <div class="form-group full" style="margin-top:8px">
+          <button class="btn btn-primary" id="btn-cadastrar" onclick="cadastrar()" disabled>Cadastrar férias</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API = '/api/ferias';
+  let todosRegistros = [];
+  let loginValido = false;
+  let timerEmail = null;
+
+  document.getElementById('hoje-header').textContent =
+    new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+
+  function showTab(tab) {
+    document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', i === (tab === 'lista' ? 0 : 1)));
+    document.getElementById('panel-lista').classList.toggle('active', tab === 'lista');
+    document.getElementById('panel-novo').classList.toggle('active', tab === 'novo');
+  }
+
+  function badge(status) {
+    const map = { 1: ['Pendente', 'pendente'], 2: ['Em Férias', 'emferias'], 3: ['Finalizado', 'finalizado'] };
+    const [label, cls] = map[status] || ['—', ''];
+    return `<span class="badge badge-${cls}">${label}</span>`;
+  }
+
+  function fmt(d) {
+    if (!d) return '—';
+    return new Date(d).toLocaleDateString('pt-BR');
+  }
+
+  function filtrar() {
+    const busca = document.getElementById('busca').value.toLowerCase();
+    const status = document.getElementById('filtro-status').value;
+    const filtrados = todosRegistros.filter(f =>
+      (!busca || f.nomeFuncionario.toLowerCase().includes(busca) || f.loginAd.toLowerCase().includes(busca)) &&
+      (!status || f.status == status)
+    );
+    renderTabela(filtrados);
+  }
+
+  function renderTabela(lista) {
+    const tbody = document.getElementById('tabela-body');
+    if (!lista.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="empty">Nenhum registro encontrado.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = lista.map(f => `
+      <tr>
+        <td><strong>${f.nomeFuncionario}</strong></td>
+        <td style="color:#666">${f.loginAd}</td>
+        <td>${fmt(f.dataInicio)}</td>
+        <td>${fmt(f.dataRetorno)}</td>
+        <td>${badge(f.status)}</td>
+        <td>
+          <div class="actions">
+            ${f.status === 2 ? `<button class="btn btn-success btn-sm" onclick="reativar(${f.id})">Reativar</button>` : ''}
+            ${f.status !== 2 ? `<button class="btn btn-danger btn-sm" onclick="excluir(${f.id})">Excluir</button>` : ''}
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  function atualizarStats(lista) {
+    const hoje = new Date();
+    const semana = new Date(hoje); semana.setDate(hoje.getDate() + 7);
+    document.getElementById('stat-total').textContent = lista.length;
+    document.getElementById('stat-emferias').textContent = lista.filter(f => f.status === 2).length;
+    document.getElementById('stat-semana').textContent = lista.filter(f => {
+      const retorno = new Date(f.dataRetorno);
+      return f.status === 2 && retorno >= hoje && retorno <= semana;
+    }).length;
+  }
+
+  async function carregarFerias() {
+    try {
+      const res = await fetch(API);
+      todosRegistros = await res.json();
+      atualizarStats(todosRegistros);
+      filtrar();
+    } catch (e) {
+      showAlert('alert-lista', 'Erro ao carregar registros. Verifique se a API está rodando.', 'error');
+    }
+  }
+
+  function onEmailInput() {
+    clearTimeout(timerEmail);
+    loginValido = false;
+    document.getElementById('btn-cadastrar').disabled = true;
+
+    const email = document.getElementById('email').value.trim();
+    const hint = document.getElementById('email-hint');
+    const input = document.getElementById('email');
+
+    if (!email.includes('@')) {
+      hint.textContent = '';
+      hint.className = 'hint';
+      input.className = '';
+      return;
+    }
+
+    const login = email.split('@')[0];
+    hint.textContent = 'Verificando usuário no AD...';
+    hint.className = 'hint verificando';
+    input.className = '';
+
+    timerEmail = setTimeout(() => validarLogin(login), 700);
+  }
+
+  async function validarLogin(login) {
+    const hint = document.getElementById('email-hint');
+    const input = document.getElementById('email');
+    try {
+      const res = await fetch(`${API}/validar-login/${login}`);
+      if (res.ok) {
+        hint.textContent = `✓ Usuário "${login}" encontrado no AD.`;
+        hint.className = 'hint ok';
+        input.className = 'valid';
+        loginValido = true;
+        document.getElementById('btn-cadastrar').disabled = false;
+      } else {
+        hint.textContent = `✗ Usuário "${login}" não encontrado no AD.`;
+        hint.className = 'hint erro';
+        input.className = 'invalid';
+        loginValido = false;
+        document.getElementById('btn-cadastrar').disabled = true;
+      }
+    } catch (e) {
+      hint.textContent = 'Erro ao verificar no AD.';
+      hint.className = 'hint erro';
+    }
+  }
+
+  async function cadastrar() {
+    const nome = document.getElementById('nome').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const dataInicio = document.getElementById('dataInicio').value;
+    const dataRetorno = document.getElementById('dataRetorno').value;
+
+    if (!nome || !email || !dataInicio || !dataRetorno) {
+      showAlert('alert-form', 'Preencha todos os campos.', 'error'); return;
+    }
+    if (!loginValido) {
+      showAlert('alert-form', 'Verifique o e-mail — usuário não encontrado no AD.', 'error'); return;
+    }
+
+    const loginAd = email.split('@')[0];
+
+    try {
+      const res = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nomeFuncionario: nome, loginAd, dataInicio, dataRetorno })
+      });
+      if (res.ok) {
+        showAlert('alert-form', 'Férias cadastradas com sucesso!', 'success');
+        document.getElementById('nome').value = '';
+        document.getElementById('email').value = '';
+        document.getElementById('email').className = '';
+        document.getElementById('email-hint').textContent = '';
+        document.getElementById('dataInicio').value = '';
+        document.getElementById('dataRetorno').value = '';
+        document.getElementById('btn-cadastrar').disabled = true;
+        loginValido = false;
+        carregarFerias();
+      } else {
+        const msg = await res.text();
+        showAlert('alert-form', msg || 'Erro ao cadastrar.', 'error');
+      }
+    } catch (e) {
+      showAlert('alert-form', 'Erro de conexão com a API.', 'error');
+    }
+  }
+
+  async function reativar(id) {
+    if (!confirm('Deseja reativar este funcionário antes do prazo?')) return;
+    try {
+      const res = await fetch(`${API}/${id}/reativar`, { method: 'POST' });
+      if (res.ok) {
+        showAlert('alert-lista', 'Funcionário reativado com sucesso!', 'success');
+        carregarFerias();
+      } else {
+        const msg = await res.text();
+        showAlert('alert-lista', msg || 'Erro ao reativar.', 'error');
+      }
+    } catch (e) {
+      showAlert('alert-lista', 'Erro de conexão com a API.', 'error');
+    }
+  }
+
+  async function excluir(id) {
+    if (!confirm('Deseja excluir este registro?')) return;
+    try {
+      const res = await fetch(`${API}/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        showAlert('alert-lista', 'Registro excluído.', 'success');
+        carregarFerias();
+      } else {
+        const msg = await res.text();
+        showAlert('alert-lista', msg || 'Erro ao excluir.', 'error');
+      }
+    } catch (e) {
+      showAlert('alert-lista', 'Erro de conexão com a API.', 'error');
+    }
+  }
+
+  function showAlert(id, msg, type) {
+    const el = document.getElementById(id);
+    el.textContent = msg;
+    el.className = `alert alert-${type}`;
+    setTimeout(() => el.className = 'alert', 4000);
+  }
+
+  carregarFerias();
+</script>
+</body>
+</html>

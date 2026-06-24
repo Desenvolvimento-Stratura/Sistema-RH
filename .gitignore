@@ -1,0 +1,43 @@
+# Build
+bin/
+obj/
+
+# Visual Studio
+.vs/
+
+# VS Code
+.vscode/
+
+# Rider
+.idea/
+
+# User files
+*.user
+*.suo
+
+# Logs
+*.log
+
+# NuGet
+packages/
+
+# Publish
+publish/
+
+# Environment
+.env
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# AppSettings Development
+SistemaFerias.Api/appsettings.Development.json
+SistemaFerias.Worker/appsettings.Development.json
+
+# Node modules
+SistemaFerias.Frontend/node_modules/
+
+# AppSettings com senhas
+SistemaFerias.Api/appsettings.json
+SistemaFerias.Worker/appsettings.json

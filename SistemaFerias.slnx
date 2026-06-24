@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="SistemaFerias.Api/SistemaFerias.Api.csproj" />
+  <Project Path="SistemaFerias.Domain/SistemaFerias.Domain.csproj" />
+  <Project Path="SistemaFerias.Infrastructure/SistemaFerias.Infrastructure.csproj" />
+  <Project Path="SistemaFerias.Worker/SistemaFerias.Worker.csproj" />
+</Solution>
