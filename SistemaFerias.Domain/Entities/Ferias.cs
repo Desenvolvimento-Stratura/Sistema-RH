@@ -19,4 +19,5 @@ public class Ferias
     public DateTime? DataEntradaFerias { get; set; }
 
     public DateTime? DataFinalizacaoFerias { get; set; }
+    public DateTime? DELETED_AT { get; set; }
 }

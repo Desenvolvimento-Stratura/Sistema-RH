@@ -25,6 +25,7 @@ public class FeriasController : ControllerBase
     public async Task<ActionResult<IEnumerable<Ferias>>> GetFerias()
     {
         return await _context.Ferias
+            .Where(f => f.DELETED_AT == null)
             .OrderByDescending(f => f.DataInicio)
             .ToListAsync();
     }
@@ -41,7 +42,7 @@ public class FeriasController : ControllerBase
     public async Task<ActionResult<IEnumerable<Ferias>>> GetFeriasByStatus(StatusFerias status)
     {
         var ferias = await _context.Ferias
-            .Where(f => f.Status == status)
+            .Where(f => f.Status == status && f.DELETED_AT == null)
             .OrderByDescending(f => f.DataInicio)
             .ToListAsync();
         return Ok(ferias);
@@ -51,7 +52,7 @@ public class FeriasController : ControllerBase
     public async Task<ActionResult<IEnumerable<Ferias>>> GetFeriasByLogin(string login)
     {
         var ferias = await _context.Ferias
-            .Where(f => f.LoginAd == login)
+            .Where(f => f.LoginAd == login && f.DELETED_AT == null)
             .OrderByDescending(f => f.DataInicio)
             .ToListAsync();
         return Ok(ferias);
@@ -79,6 +80,7 @@ public class FeriasController : ControllerBase
             return BadRequest("A data de retorno deve ser maior que a data de início.");
 
         var conflito = await _context.Ferias.AnyAsync(f =>
+            f.DELETED_AT == null &&
             f.LoginAd == dto.LoginAd &&
             dto.DataInicio <= f.DataRetorno &&
             dto.DataRetorno >= f.DataInicio);
@@ -121,6 +123,7 @@ public class FeriasController : ControllerBase
 
         var conflito = await _context.Ferias.AnyAsync(f =>
             f.Id != id &&
+            f.DELETED_AT == null &&
             f.LoginAd == dto.LoginAd &&
             dto.DataInicio <= f.DataRetorno &&
             dto.DataRetorno >= f.DataInicio);
@@ -140,7 +143,8 @@ public class FeriasController : ControllerBase
     [HttpPost("{id}/reativar")]
     public async Task<IActionResult> ReativarManual(int id)
     {
-        var ferias = await _context.Ferias.FindAsync(id);
+        var ferias = await _context.Ferias
+        .FirstOrDefaultAsync(f => f.Id == id && f.DELETED_AT == null);
         if (ferias == null) return NotFound();
 
         if (ferias.Status != StatusFerias.EmFerias)
@@ -166,7 +170,7 @@ public class FeriasController : ControllerBase
         if (ferias.Status == StatusFerias.EmFerias)
             return BadRequest("Não é possível excluir um registro em andamento.");
 
-        _context.Ferias.Remove(ferias);
+        ferias.DELETED_AT = DateTime.Now;
         await _context.SaveChangesAsync();
         return NoContent();
     }
