@@ -1,5 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using SistemaFerias.Domain.Interfaces;
 using SistemaFerias.Infrastructure.Data;
+using SistemaFerias.Infrastructure.Repositories;
+using SistemaFerias.Infrastructure.Exchange;
 using SistemaFerias.Infrastructure.Services;
 using SistemaFerias.Worker;
 
@@ -13,6 +16,9 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     ));
 
 builder.Services.AddScoped<IActiveDirectoryService, ActiveDirectoryService>();
+builder.Services.AddScoped<IExchangeAutoReplyBackupRepository, ExchangeAutoReplyBackupRepository>();
+builder.Services.AddTransient<IPowerShellExecutor, PowerShellExecutor>();
+builder.Services.AddScoped<IExchangeOnlineService, ExchangeOnlineService>();
 
 builder.Services.AddHostedService<Worker>();
 
