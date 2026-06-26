@@ -13,6 +13,7 @@ public interface IActiveDirectoryService
 
 public class ActiveDirectoryService : IActiveDirectoryService
 {
+    private readonly bool _useMock;
     private readonly string _domain;
     private readonly string _container;
     private readonly string _adminUser;
@@ -24,6 +25,7 @@ public class ActiveDirectoryService : IActiveDirectoryService
         ILogger<ActiveDirectoryService> logger)
     {
         _logger = logger;
+        _useMock = bool.TryParse(configuration["ActiveDirectory:UseMock"], out var mock) && mock;
         _domain        = configuration["ActiveDirectory:Domain"]        ?? throw new InvalidOperationException("AD Domain não configurado.");
         _container     = configuration["ActiveDirectory:Container"]     ?? throw new InvalidOperationException("AD Container não configurado.");
         _adminUser     = configuration["ActiveDirectory:AdminUser"]     ?? throw new InvalidOperationException("AD AdminUser não configurado.");
@@ -38,6 +40,12 @@ public class ActiveDirectoryService : IActiveDirectoryService
 
     public bool UsuarioExiste(string loginAd)
     {
+        if (_useMock)
+        {
+            _logger.LogInformation("[MOCK] Usuario {Login} encontrado no AD.", loginAd);
+            return true;
+        }
+
         try
         {
             using var context = new PrincipalContext(
@@ -63,6 +71,15 @@ public class ActiveDirectoryService : IActiveDirectoryService
 
     private bool AlterarStatusConta(string loginAd, bool desabilitar)
     {
+        if (_useMock)
+        {
+            _logger.LogInformation(
+                "[MOCK] Conta {Login} {Acao} no AD.",
+                loginAd,
+                desabilitar ? "bloqueada" : "reativada");
+            return true;
+        }
+
         try
         {
             using var context = new PrincipalContext(

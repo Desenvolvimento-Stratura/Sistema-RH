@@ -150,6 +150,15 @@ public class FeriasController : ControllerBase
         if (!reativou)
             return StatusCode(502, "Falha ao reativar a conta no Active Directory.");
 
+        var backup = await _context.ExchangeAutoReplyBackups
+            .FirstOrDefaultAsync(b => b.FeriasId == ferias.Id && !b.BackupRestaurado);
+
+        if (backup != null)
+        {
+            backup.BackupRestaurado = true;
+            backup.DataRestauracao = DateTime.UtcNow;
+        }
+
         ferias.Status = StatusFerias.Finalizado;
         ferias.DataFinalizacaoFerias = DateTime.Now;
         await _context.SaveChangesAsync();

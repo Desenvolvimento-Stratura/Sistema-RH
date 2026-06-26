@@ -15,6 +15,10 @@ public class AutoReplyConfiguration
     public string ExternalMessage { get; set; } = string.Empty;
     public DateTime? StartTime { get; set; }
     public DateTime? EndTime { get; set; }
+
+    public bool IsEnabled =>
+        AutoReplyState.Equals("Enabled", StringComparison.OrdinalIgnoreCase) ||
+        AutoReplyState.Equals("Scheduled", StringComparison.OrdinalIgnoreCase);
 }
 
 public interface IExchangeOnlineService
@@ -67,8 +71,8 @@ public class ExchangeOnlineService : IExchangeOnlineService
         // Script PowerShell para conectar ao Exchange Online, obter a configuracao em JSON e desconectar
         var script = $@"
 Import-Module ExchangeOnlineManagement
-Connect-ExchangeOnline -UserPrincipalName '{_adminUser}' -ShowBanner:$false
-Get-MailboxAutoReplyConfiguration -Identity '{email}' | ConvertTo-Json
+Connect-ExchangeOnline -UserPrincipalName '{EscapePowerShellString(_adminUser)}' -ShowBanner:$false
+Get-MailboxAutoReplyConfiguration -Identity '{EscapePowerShellString(email)}' | Select-Object AutoReplyState, ExternalAudience, InternalMessage, ExternalMessage, StartTime, EndTime | ConvertTo-Json -Depth 3
 Disconnect-ExchangeOnline -Confirm:$false
 ";
 
@@ -113,8 +117,8 @@ Disconnect-ExchangeOnline -Confirm:$false
 
         var script = $@"
 Import-Module ExchangeOnlineManagement
-Connect-ExchangeOnline -UserPrincipalName '{_adminUser}' -ShowBanner:$false
-Set-MailboxAutoReplyConfiguration -Identity '{email}' -AutoReplyState Disabled
+Connect-ExchangeOnline -UserPrincipalName '{EscapePowerShellString(_adminUser)}' -ShowBanner:$false
+Set-MailboxAutoReplyConfiguration -Identity '{EscapePowerShellString(email)}' -AutoReplyState Disabled
 Disconnect-ExchangeOnline -Confirm:$false
 ";
 
@@ -128,5 +132,10 @@ Disconnect-ExchangeOnline -Confirm:$false
 
         _logger.LogInformation("AutoReply desabilitado com sucesso para: {Email}", email);
         return true;
+    }
+
+    private static string EscapePowerShellString(string value)
+    {
+        return value.Replace("'", "''");
     }
 }

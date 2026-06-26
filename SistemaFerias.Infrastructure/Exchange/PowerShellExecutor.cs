@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -22,14 +23,20 @@ public class PowerShellExecutor : IPowerShellExecutor
 
     public async Task<(bool Success, string Output, string Error)> ExecuteCommandAsync(string command)
     {
+        var scriptPath = Path.Combine(
+            Path.GetTempPath(),
+            $"SistemaFerias-Exchange-{Guid.NewGuid():N}.ps1");
+
         try
         {
-            _logger.LogInformation("Executando comando PowerShell: {Command}", command);
+            await File.WriteAllTextAsync(scriptPath, command, Encoding.UTF8);
+
+            _logger.LogInformation("Executando script PowerShell temporario: {ScriptPath}", scriptPath);
 
             var startInfo = new ProcessStartInfo
             {
                 FileName = "powershell.exe",
-                Arguments = $"-NoProfile -NonInteractive -Command \"{command.Replace("\"", "\\\"")}\"",
+                Arguments = $"-NoProfile -ExecutionPolicy Bypass -File \"{scriptPath}\"",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
@@ -66,6 +73,20 @@ public class PowerShellExecutor : IPowerShellExecutor
         {
             _logger.LogError(ex, "Falha na inicialização do processo PowerShell.");
             return (false, string.Empty, ex.Message);
+        }
+        finally
+        {
+            try
+            {
+                if (File.Exists(scriptPath))
+                {
+                    File.Delete(scriptPath);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Nao foi possivel remover o script PowerShell temporario {ScriptPath}.", scriptPath);
+            }
         }
     }
 }
