@@ -25,7 +25,6 @@ public class FeriasController : ControllerBase
     public async Task<ActionResult<IEnumerable<Ferias>>> GetFerias()
     {
         return await _context.Ferias
-            .Where(f => f.DELETED_AT == null)
             .OrderByDescending(f => f.DataInicio)
             .ToListAsync();
     }
@@ -42,7 +41,7 @@ public class FeriasController : ControllerBase
     public async Task<ActionResult<IEnumerable<Ferias>>> GetFeriasByStatus(StatusFerias status)
     {
         var ferias = await _context.Ferias
-            .Where(f => f.Status == status && f.DELETED_AT == null)
+            .Where(f => f.Status == status)
             .OrderByDescending(f => f.DataInicio)
             .ToListAsync();
         return Ok(ferias);
@@ -52,7 +51,7 @@ public class FeriasController : ControllerBase
     public async Task<ActionResult<IEnumerable<Ferias>>> GetFeriasByLogin(string login)
     {
         var ferias = await _context.Ferias
-            .Where(f => f.LoginAd == login && f.DELETED_AT == null)
+            .Where(f => f.LoginAd == login)
             .OrderByDescending(f => f.DataInicio)
             .ToListAsync();
         return Ok(ferias);
@@ -80,7 +79,6 @@ public class FeriasController : ControllerBase
             return BadRequest("A data de retorno deve ser maior que a data de início.");
 
         var conflito = await _context.Ferias.AnyAsync(f =>
-            f.DELETED_AT == null &&
             f.LoginAd == dto.LoginAd &&
             dto.DataInicio <= f.DataRetorno &&
             dto.DataRetorno >= f.DataInicio);
@@ -123,7 +121,6 @@ public class FeriasController : ControllerBase
 
         var conflito = await _context.Ferias.AnyAsync(f =>
             f.Id != id &&
-            f.DELETED_AT == null &&
             f.LoginAd == dto.LoginAd &&
             dto.DataInicio <= f.DataRetorno &&
             dto.DataRetorno >= f.DataInicio);
@@ -143,8 +140,7 @@ public class FeriasController : ControllerBase
     [HttpPost("{id}/reativar")]
     public async Task<IActionResult> ReativarManual(int id)
     {
-        var ferias = await _context.Ferias
-        .FirstOrDefaultAsync(f => f.Id == id && f.DELETED_AT == null);
+        var ferias = await _context.Ferias.FindAsync(id);
         if (ferias == null) return NotFound();
 
         if (ferias.Status != StatusFerias.EmFerias)
@@ -153,6 +149,15 @@ public class FeriasController : ControllerBase
         var reativou = _adService.ReativarConta(ferias.LoginAd);
         if (!reativou)
             return StatusCode(502, "Falha ao reativar a conta no Active Directory.");
+
+        var backup = await _context.ExchangeAutoReplyBackups
+            .FirstOrDefaultAsync(b => b.FeriasId == ferias.Id && !b.BackupRestaurado);
+
+        if (backup != null)
+        {
+            backup.BackupRestaurado = true;
+            backup.DataRestauracao = DateTime.UtcNow;
+        }
 
         ferias.Status = StatusFerias.Finalizado;
         ferias.DataFinalizacaoFerias = DateTime.Now;
@@ -170,7 +175,7 @@ public class FeriasController : ControllerBase
         if (ferias.Status == StatusFerias.EmFerias)
             return BadRequest("Não é possível excluir um registro em andamento.");
 
-        ferias.DELETED_AT = DateTime.Now;
+        _context.Ferias.Remove(ferias);
         await _context.SaveChangesAsync();
         return NoContent();
     }
