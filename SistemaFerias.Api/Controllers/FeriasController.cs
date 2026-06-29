@@ -66,6 +66,16 @@ public class FeriasController : ControllerBase
         return NotFound(new { existe = false, mensagem = "Usuário não encontrado no Active Directory." });
     }
 
+    [HttpGet("buscar-usuario")]
+    public ActionResult BuscarUsuario([FromQuery] string nome)
+    {
+        if (string.IsNullOrWhiteSpace(nome) || nome.Length < 2)
+            return Ok(new List<object>());
+
+        var usuarios = _adService.BuscarPorNome(nome);
+        return Ok(usuarios);
+    }
+
     [HttpPost]
     public async Task<ActionResult<Ferias>> CreateFerias(CreateFeriasDto dto)
     {

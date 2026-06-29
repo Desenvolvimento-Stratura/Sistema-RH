@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import './App.css'
 
 const API = '/api/ferias'
+const ANO_MINIMO = `${new Date().getFullYear()}-01-01`
 
 function Badge({ status }) {
   const map = {
@@ -26,20 +27,30 @@ export default function App() {
   const [alertLista, setAlertLista] = useState(null)
   const [alertForm, setAlertForm] = useState(null)
 
-  // form
-  const [nome, setNome] = useState('')
-  const [email, setEmail] = useState('')
-  const [emailHint, setEmailHint] = useState(null)
-  const [loginValido, setLoginValido] = useState(false)
+  const [buscaNome, setBuscaNome] = useState('')
+  const [sugestoes, setSugestoes] = useState([])
+  const [usuarioSelecionado, setUsuarioSelecionado] = useState(null)
+  const [mostrarSugestoes, setMostrarSugestoes] = useState(false)
   const [dataInicio, setDataInicio] = useState('')
   const [dataRetorno, setDataRetorno] = useState('')
   const timerRef = useRef(null)
+  const autocompleteRef = useRef(null)
 
   const hoje = new Date().toLocaleDateString('pt-BR', {
     weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
   })
 
   useEffect(() => { carregarFerias() }, [])
+
+  useEffect(() => {
+    function handleClickFora(e) {
+      if (autocompleteRef.current && !autocompleteRef.current.contains(e.target)) {
+        setMostrarSugestoes(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickFora)
+    return () => document.removeEventListener('mousedown', handleClickFora)
+  }, [])
 
   async function carregarFerias() {
     try {
@@ -72,50 +83,58 @@ export default function App() {
     return f.status === 2 && ret >= agora && ret <= semana
   }).length
 
-  function onEmailChange(val) {
-    setEmail(val)
-    setLoginValido(false)
-    setEmailHint(null)
+  function onBuscaNomeChange(val) {
+    setBuscaNome(val)
+    setUsuarioSelecionado(null)
+    setSugestoes([])
     clearTimeout(timerRef.current)
-    if (!val.includes('@')) return
-    const login = val.split('@')[0]
-    setEmailHint({ msg: 'Verificando usuário no AD...', tipo: 'verificando' })
-    timerRef.current = setTimeout(() => validarLogin(login), 700)
+    if (val.length < 2) { setMostrarSugestoes(false); return }
+    timerRef.current = setTimeout(() => buscarUsuarios(val), 400)
   }
 
-  async function validarLogin(login) {
+  async function buscarUsuarios(nome) {
     try {
-      const res = await fetch(`${API}/validar-login/${login}`)
-      if (res.ok) {
-        setEmailHint({ msg: `✓ Usuário "${login}" encontrado no AD.`, tipo: 'ok' })
-        setLoginValido(true)
-      } else {
-        setEmailHint({ msg: `✗ Usuário "${login}" não encontrado no AD.`, tipo: 'erro' })
-        setLoginValido(false)
-      }
+      const res = await fetch(`${API}/buscar-usuario?nome=${encodeURIComponent(nome)}`)
+      const data = await res.json()
+      setSugestoes(data)
+      setMostrarSugestoes(data.length > 0)
     } catch {
-      setEmailHint({ msg: 'Erro ao verificar no AD.', tipo: 'erro' })
+      setSugestoes([])
     }
+  }
+
+  function selecionarUsuario(usuario) {
+    setUsuarioSelecionado(usuario)
+    setBuscaNome(usuario.nome)
+    setSugestoes([])
+    setMostrarSugestoes(false)
   }
 
   async function cadastrar() {
-    if (!nome || !email || !dataInicio || !dataRetorno) {
-      showAlert('form', 'Preencha todos os campos.', 'error'); return
+    if (!usuarioSelecionado || !dataInicio || !dataRetorno) {
+      showAlert('form', 'Selecione um funcionário e preencha as datas.', 'error'); return
     }
-    if (!loginValido) {
-      showAlert('form', 'Verifique o e-mail — usuário não encontrado no AD.', 'error'); return
+
+    const anoAtual = new Date().getFullYear()
+    if (new Date(dataInicio).getFullYear() < anoAtual || new Date(dataRetorno).getFullYear() < anoAtual) {
+      showAlert('form', `As datas devem ser do ano ${anoAtual} em diante.`, 'error'); return
     }
-    const loginAd = email.split('@')[0]
+
     try {
       const res = await fetch(API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nomeFuncionario: nome, loginAd, dataInicio, dataRetorno })
+        body: JSON.stringify({
+          nomeFuncionario: usuarioSelecionado.nome,
+          loginAd: usuarioSelecionado.login,
+          dataInicio,
+          dataRetorno
+        })
       })
       if (res.ok) {
         showAlert('form', 'Férias cadastradas com sucesso!', 'success')
-        setNome(''); setEmail(''); setDataInicio(''); setDataRetorno('')
-        setEmailHint(null); setLoginValido(false)
+        setBuscaNome(''); setUsuarioSelecionado(null)
+        setDataInicio(''); setDataRetorno('')
         carregarFerias()
       } else {
         const msg = await res.text()
@@ -235,31 +254,39 @@ export default function App() {
             <h2>Cadastrar período de férias</h2>
             {alertForm && <div className={`alert alert-${alertForm.tipo}`}>{alertForm.msg}</div>}
             <div className="form-grid">
-              <div className="form-group">
-                <label>Nome do funcionário</label>
-                <input value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex: João da Silva" />
-              </div>
-              <div className="form-group">
-                <label>E-mail corporativo</label>
+              <div className="form-group full" ref={autocompleteRef} style={{position:'relative'}}>
+                <label>Funcionário</label>
                 <input
-                  type="email"
-                  value={email}
-                  onChange={e => onEmailChange(e.target.value)}
-                  placeholder="Ex: joao.silva@stratura.com.br"
-                  className={loginValido ? 'valid' : emailHint?.tipo === 'erro' ? 'invalid' : ''}
+                  value={buscaNome}
+                  onChange={e => onBuscaNomeChange(e.target.value)}
+                  placeholder="Digite o nome do funcionário..."
+                  className={usuarioSelecionado ? 'valid' : ''}
+                  autoComplete="off"
                 />
-                {emailHint && <span className={`hint ${emailHint.tipo}`}>{emailHint.msg}</span>}
+                {usuarioSelecionado && (
+                  <span className="hint ok">✓ {usuarioSelecionado.nome} — login: {usuarioSelecionado.login}</span>
+                )}
+                {mostrarSugestoes && (
+                  <ul className="autocomplete-list">
+                    {sugestoes.map((u, i) => (
+                      <li key={i} onClick={() => selecionarUsuario(u)}>
+                        <strong>{u.nome}</strong>
+                        <span>{u.login}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
               <div className="form-group">
                 <label>Data de início</label>
-                <input type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)} />
+                <input type="date" value={dataInicio} min={ANO_MINIMO} onChange={e => setDataInicio(e.target.value)} />
               </div>
               <div className="form-group">
                 <label>Data de retorno</label>
-                <input type="date" value={dataRetorno} onChange={e => setDataRetorno(e.target.value)} />
+                <input type="date" value={dataRetorno} min={dataInicio || ANO_MINIMO} onChange={e => setDataRetorno(e.target.value)} />
               </div>
               <div className="form-group full">
-                <button className="btn btn-primary" onClick={cadastrar} disabled={!loginValido}>
+                <button className="btn btn-primary" onClick={cadastrar} disabled={!usuarioSelecionado}>
                   Cadastrar férias
                 </button>
               </div>

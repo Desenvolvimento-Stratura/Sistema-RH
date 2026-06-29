@@ -155,6 +155,36 @@ tr:hover td { background: #fafafe; }
 .alert-success { background: #dcfce7; color: #166534; }
 .alert-error { background: #fee2e2; color: #991b1b; }
 
+/* Autocomplete */
+.autocomplete-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #dde0ec;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 4px 0;
+  z-index: 100;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.autocomplete-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: 13px;
+  gap: 12px;
+}
+.autocomplete-list li:hover { background: #f5f6fa; }
+.autocomplete-list li strong { color: #1a1a2e; }
+.autocomplete-list li span { color: #888; font-size: 12px; flex-shrink: 0; }
+
 @media (max-width: 600px) {
   .form-grid { grid-template-columns: 1fr; }
   .stats { grid-template-columns: 1fr; }

@@ -4,11 +4,18 @@ using Microsoft.Extensions.Logging;
 
 namespace SistemaFerias.Infrastructure.Services;
 
+public class UsuarioAdDto
+{
+    public string Nome { get; set; } = string.Empty;
+    public string Login { get; set; } = string.Empty;
+}
+
 public interface IActiveDirectoryService
 {
     bool BloquearConta(string loginAd);
     bool ReativarConta(string loginAd);
     bool UsuarioExiste(string loginAd);
+    List<UsuarioAdDto> BuscarPorNome(string nome);
 }
 
 public class ActiveDirectoryService : IActiveDirectoryService
@@ -66,6 +73,54 @@ public class ActiveDirectoryService : IActiveDirectoryService
         {
             _logger.LogError(ex, "Erro ao verificar existência do usuário {Login} no AD.", loginAd);
             return false;
+        }
+    }
+
+    public List<UsuarioAdDto> BuscarPorNome(string nome)
+    {
+        if (_useMock)
+        {
+            _logger.LogInformation("[MOCK] Buscando usuários com nome: {Nome}", nome);
+            return new List<UsuarioAdDto>
+            {
+                new() { Nome = "João da Silva (MOCK)", Login = "joao.silva" },
+                new() { Nome = "João Pedro Santos (MOCK)", Login = "joao.santos" }
+            };
+        }
+
+        try
+        {
+            using var context = new PrincipalContext(
+                ContextType.Domain,
+                _domain,
+                _container,
+                _adminUser,
+                _adminPassword);
+
+            var filtro = new UserPrincipal(context)
+            {
+                DisplayName = $"*{nome}*",
+                Enabled = true
+            };
+
+            using var searcher = new PrincipalSearcher(filtro);
+            searcher.QueryFilter = filtro;
+
+            return searcher.FindAll()
+                .OfType<UserPrincipal>()
+                .Where(u => !string.IsNullOrEmpty(u.SamAccountName))
+                .Take(10)
+                .Select(u => new UsuarioAdDto
+                {
+                    Nome = u.DisplayName ?? u.Name ?? u.SamAccountName!,
+                    Login = u.SamAccountName!
+                })
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao buscar usuários por nome no AD.");
+            return new List<UsuarioAdDto>();
         }
     }
 
